@@ -14,7 +14,7 @@
     "init": "node scripts/init.mjs",
     "validate": "node scripts/validate.mjs",
     "lint:comments": "node scripts/lint-comments.mjs",
-    "preflight:ci": "npm run lint:comments && npm test && node scripts/validate-product-site.mjs && npm --prefix dashboard run lint && npx tsc -p dashboard/tsconfig.json --noEmit",
+    "preflight:ci": "npm run lint:comments && npm test && node scripts/validate-product-site.mjs && npm --prefix dashboard run lint && npm --prefix dashboard run typecheck",
     "test": "vitest run",
     "test:watch": "vitest"
   },

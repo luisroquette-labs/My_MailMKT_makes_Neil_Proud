@@ -22,7 +22,6 @@ export default function Hub() {
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
-    setCarregando(true);
     const t = setTimeout(() => setCarregando(false), 600);
     return () => clearTimeout(t);
   }, [estado]);
@@ -40,7 +39,11 @@ export default function Hub() {
             Última rodada do dispatcher: {formatarDataHora(AGORA_FIXA)} · America/Sao_Paulo
           </p>
         </div>
-        <Tabs value={estado} onValueChange={(v) => setEstado(v as EstadoDemo)}>
+        <Tabs value={estado} onValueChange={(v) => {
+          if (v === estado) return;
+          setCarregando(true);
+          setEstado(v as EstadoDemo);
+        }}>
           <TabsList>
             <TabsTrigger value="ok">Dados</TabsTrigger>
             <TabsTrigger value="vazio">Vazio</TabsTrigger>
@@ -58,7 +61,10 @@ export default function Hub() {
             <p className="text-sm text-muted-foreground">
               Leitura que falha é null — a dashboard degrada, o envio não.
             </p>
-            <Button variant="outline" onClick={() => setEstado("ok")}>
+            <Button variant="outline" onClick={() => {
+              setCarregando(true);
+              setEstado("ok");
+            }}>
               Tentar de novo
             </Button>
           </CardContent>
