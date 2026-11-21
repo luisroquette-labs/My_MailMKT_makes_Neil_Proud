@@ -74,12 +74,27 @@ function hashComments(source, shebang = false) {
   return offsets;
 }
 
+function htmlComments(source) {
+  const comments = [];
+  for (const match of source.matchAll(/<!--[\s\S]*?-->/g)) comments.push(match.index);
+  for (const match of source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
+    const start = match.index + match[0].indexOf(match[1]);
+    for (const offset of tsComments("inline.js", match[1])) comments.push(start + offset);
+  }
+  for (const match of source.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
+    const start = match.index + match[0].indexOf(match[1]);
+    for (const comment of match[1].matchAll(/\/\*[\s\S]*?\*\//g)) comments.push(start + comment.index);
+  }
+  return comments;
+}
+
 assert.equal(tsComments("sample.ts", '#!/usr/bin/env node\nconst url = "https://example.com/a//b";\nconst template = `https://${"example.com"}`;').length, 0);
 assert.equal(tsComments("sample.tsx", "const element = <div>{/* forbidden */}</div>;").length, 1);
 assert.equal(tsComments("sample.ts", "const x = 1; // forbidden").length, 1);
 assert.deepEqual(sqlComments("select '--'; -- forbidden\nselect 1 /* forbidden */;"), [13, 35]);
 assert.equal(hashComments('key: "value # literal"\nkey: value #forbidden').length, 1);
 assert.equal(hashComments('#!/bin/sh\nprintf "# literal"\n#forbidden', true).length, 1);
+assert.equal(htmlComments('<script>const x = 1; // forbidden\n</script >').length, 1);
 
 for (const path of paths) {
   if (!checked.test(path) || generated.test(path)) continue;
@@ -92,15 +107,7 @@ for (const path of paths) {
   } else if (/\.sql$/.test(path)) {
     comments.push(...sqlComments(source));
   } else if (/\.html$/.test(path)) {
-    for (const match of source.matchAll(/<!--[\s\S]*?-->/g)) comments.push(match.index);
-    for (const match of source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
-      const start = match.index + match[0].indexOf(match[1]);
-      for (const offset of tsComments("inline.js", match[1])) comments.push(start + offset);
-    }
-    for (const match of source.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
-      const start = match.index + match[0].indexOf(match[1]);
-      for (const comment of match[1].matchAll(/\/\*[\s\S]*?\*\//g)) comments.push(start + comment.index);
-    }
+    comments.push(...htmlComments(source));
   } else if (/\.ya?ml$/.test(path)) {
     comments.push(...hashComments(source));
   } else if (/\.sh$/.test(path)) {
