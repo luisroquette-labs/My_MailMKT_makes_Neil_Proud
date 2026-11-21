@@ -93,6 +93,7 @@ function htmlComments(source) {
       }
     }
     for (const child of node.childNodes ?? []) visit(child);
+    if (node.content) visit(node.content);
   }
   visit(parse(source, { sourceCodeLocationInfo: true }));
   return comments;
@@ -106,6 +107,7 @@ assert.equal(hashComments('key: "value # literal"\nkey: value #forbidden').lengt
 assert.equal(hashComments('#!/bin/sh\nprintf "# literal"\n#forbidden', true).length, 1);
 assert.equal(htmlComments('<script>const x = 1; // forbidden\n</script >').length, 1);
 assert.equal(htmlComments('<script>const x = 1; // forbidden\n</script\t\n bar>').length, 1);
+assert.equal(htmlComments('<template><!-- forbidden --></template>').length, 1);
 
 for (const path of paths) {
   if (!checked.test(path) || generated.test(path)) continue;
