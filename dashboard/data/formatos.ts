@@ -1,4 +1,3 @@
-/** PT-BR display helpers — raw ISO strings never reach the UI. */
 export function formatarDataHora(iso: string): string {
   const d = new Date(iso);
   const dia = String(d.getDate()).padStart(2, "0");

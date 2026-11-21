@@ -1,11 +1,3 @@
-/**
- * Canonical fixtures for the demo dashboard.
- *
- * Mirrors adapters/memoria seed (three leads, fixed clock 2026-08-18 10:00
- * America/Sao_Paulo). NEVER dynamic dates: every render is identical.
- * The shapes match the real Supabase schema — see contratos.ts for the
- * actual queries each screen maps to in production.
- */
 
 export const AGORA_FIXA = "2026-08-18T10:00:00-03:00";
 
@@ -16,7 +8,6 @@ export interface BlocoDoMotor {
   nome: string;
   horario: string;
   prioridade: number;
-  /** Fidelity: a read that fails is null, NEVER 0. */
   ultimaRodada: { executadoEm: string; candidatos: number; enviados: number; falhas: number } | null;
 }
 
@@ -56,13 +47,12 @@ export const RESUMO_DO_DIA: ResumoDoDia = {
   fusivel: { usado: 6, limite: 100 },
 };
 
-// --- T18: calendar, rules, agenda, campaigns, copy ---
 
 export interface MarcacaoDoCalendario {
-  diaISO: string; // 2026-08-18
-  hora: string; // "10:00"
+  diaISO: string;
+  hora: string;
   motor: MotorId;
-  colide: boolean; // truncated-hour collision: two motors due on the same tick
+  colide: boolean;
 }
 
 const DIAS_14 = Array.from({ length: 14 }, (_, i) => {
@@ -71,9 +61,6 @@ const DIAS_14 = Array.from({ length: 14 }, (_, i) => {
   return d.toISOString().slice(0, 10);
 });
 
-// Horários AGENDADOS (fiéis aos defaults): mail_mkt 10:30 e esteira 10:00
-// COLIDEM no mesmo tique de hora cheia (10) — é a colisão real do
-// truncamento, a mesma que o dispatcher resolve por prioridade.
 export const CALENDARIO_14_DIAS: MarcacaoDoCalendario[] = DIAS_14.flatMap((diaISO, i) => {
   const marcacoes: MarcacaoDoCalendario[] = [];
   if (i % 2 === 0) marcacoes.push({ diaISO, hora: "10:30", motor: "mail_mkt", colide: true });
@@ -146,8 +133,6 @@ export const CAMPANHAS_DEMO: CampanhaDemo[] = [
   },
 ];
 
-/** Port of nucleo/piso.ts TERMOS_BANIDOS — the demo validates locally;
- *  production runs the same gate on save AND send, server-side. */
 export const TERMOS_BANIDOS_DEMO = [
   "garantido", "garantida", "garantia de retorno", "sem risco", "lucro certo",
   "renda garantida", "certeza de resultado", "domine em", "dobre seu salário",

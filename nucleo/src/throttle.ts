@@ -1,24 +1,9 @@
 import type { LinhaLogDeEnvio } from "./contratos";
 import type { RegrasThrottle } from "./config";
 
-/**
- * Shared fatigue throttle — the single point that limits how many emails a
- * lead receives. The the production incident of 17/08/2026 happened because five
- * independent runners had five independent throttle states and one lead got
- * three emails in one hour. Fidelity contract:
- *
- * - one state loaded ONCE per dispatch round (after orphan reservations are
- *   cleaned), shared by ALL motors in memory;
- * - `aplicarEnvio` mutates that state so the second motor sees what the
- *   first one just served;
- * - loading window = max(24h, minHorasEntreEnvios);
- * - local day always computed in America/Sao_Paulo (never `getHours()` —
- *   the runtime is UTC).
- */
 
 const TIMEZONE = "America/Sao_Paulo";
 
-// Module-scoped formatter — one per process, not per check (hundreds per round).
 const FORMATADOR_DIA_LOCAL = new Intl.DateTimeFormat("en-CA", {
   timeZone: TIMEZONE,
   year: "numeric",
@@ -27,11 +12,9 @@ const FORMATADOR_DIA_LOCAL = new Intl.DateTimeFormat("en-CA", {
 });
 
 export interface EstadoThrottle {
-  /** email (normalized lowercase) -> ISO send timestamps within the window. */
   enviadosPorEmail: Map<string, string[]>;
 }
 
-/** Local calendar day (YYYY-MM-DD) of an ISO instant in America/Sao_Paulo. */
 function diaLocal(iso: string): string {
   return FORMATADOR_DIA_LOCAL.format(new Date(iso));
 }
@@ -68,14 +51,12 @@ export function podeReceber(
   const enviados = estado.enviadosPorEmail.get(normalizado) ?? [];
   if (enviados.length === 0) return { permitido: true };
 
-  // 1) daily cap — count sends on the SAME local day as "now"
   const diaDeAgora = diaLocal(agoraIso);
   const noDia = enviados.filter((iso) => diaLocal(iso) === diaDeAgora);
   if (noDia.length >= regras.maxPorLeadPorDia) {
     return { permitido: false, motivo: "limite_por_dia" };
   }
 
-  // 2) minimum interval — distance from the most recent send
   const maisRecente = enviados
     .map((iso) => new Date(iso).getTime())
     .filter((t) => Number.isFinite(t))
@@ -88,7 +69,6 @@ export function podeReceber(
   return { permitido: true };
 }
 
-/** Record a send in the in-memory state — the next motor in the round sees it. */
 export function aplicarEnvio(estado: EstadoThrottle, email: string, agoraIso: string): void {
   const normalizado = email.trim().toLowerCase();
   if (!normalizado) return;

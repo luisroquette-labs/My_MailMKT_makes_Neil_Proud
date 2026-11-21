@@ -1,11 +1,3 @@
-/**
- * Nurture configuration with safe merge.
- *
- * Fidelity contract (from the reference production system, 17-18/08/2026): rules live
- * in the database (`nurture_config` singleton jsonb) and are merged over
- * `CONFIG_PADRAO`. An absent table changes nothing and logs; an invalid value
- * falls back to the default per field — merge NEVER throws.
- */
 
 export interface RegrasThrottle {
   maxPorLeadPorDia: number;
@@ -22,8 +14,6 @@ export interface HorariosDosMotores {
 
 export type MotorId = keyof HorariosDosMotores;
 
-/** Fixed dispatch order — the reference incident of 17/08 was born from
- * independent schedules; this order is the single source of truth. */
 export const PRIORIDADE_DOS_MOTORES: readonly MotorId[] = [
   "mail_mkt",
   "lancamento",
@@ -41,14 +31,12 @@ export const MOTORES_CONHECIDOS: readonly MotorId[] = [
 ];
 
 export interface JanelaDeBlackout {
-  inicio: string; // "HH:MM"
-  fim: string; // "HH:MM"
+  inicio: string;
+  fim: string;
 }
 
 export interface AgendaEntrada {
-  /** 0 (Sunday) to 6 (Saturday). */
   dias: number[];
-  /** "HH:MM" strings; compared against the hour-truncated tick. */
   horas: string[];
   alvo: MotorId;
 }
@@ -57,12 +45,10 @@ export interface ConfigNurture {
   throttle: RegrasThrottle;
   prioridade: MotorId[];
   horarios: HorariosDosMotores;
-  /** 0 (Sunday) to 6 (Saturday). Reference default: 4 (Thursday). */
   digestDiaDaSemana: number;
   timezone: string;
   janelas: { diasPermitidos: number[]; blackout: JanelaDeBlackout[] };
   fusivel: { email: number };
-  /** null = derive from `horarios` (agendaPadraoDe). */
   agenda: AgendaEntrada[] | null;
 }
 
@@ -83,7 +69,6 @@ export const CONFIG_PADRAO: ConfigNurture = {
   agenda: null,
 };
 
-// --- pure validators (invalid input NEVER throws — falls back to default) ---
 
 const RE_HORA = /^\d{2}:\d{2}$/;
 
@@ -115,25 +100,16 @@ function mesclarHora(v: unknown, fallback: string): string {
   return ehHoraValida(v) ? v : fallback;
 }
 
-/**
- * Merge `parcial` (untrusted jsonb from the database) over CONFIG_PADRAO.
- * Every field is validated independently; invalid values fall back to the
- * default. Never throws.
- */
 export function mesclarConfig(parcial: unknown): ConfigNurture {
   const base = CONFIG_PADRAO;
   const p = ehObjeto(parcial) ? parcial : {};
 
-  // throttle
   const t = ehObjeto(p.throttle) ? p.throttle : {};
   const throttle: RegrasThrottle = {
     maxPorLeadPorDia: inteiroPositivo(t.maxPorLeadPorDia) ?? base.throttle.maxPorLeadPorDia,
     minHorasEntreEnvios: inteiroPositivo(t.minHorasEntreEnvios) ?? base.throttle.minHorasEntreEnvios,
   };
 
-  // prioridade: keep only known motors, in the given order, deduped — then
-  // APPEND the unlisted motors. The list is an ORDER, not an inclusion
-  // filter: omitting a motor must never switch it off silently.
   const prioridadeBruta = Array.isArray(p.prioridade) ? p.prioridade : [];
   const vistos = new Set<MotorId>();
   const prioridade: MotorId[] = [];
@@ -155,7 +131,6 @@ export function mesclarConfig(parcial: unknown): ConfigNurture {
     }
   }
 
-  // horarios
   const h = ehObjeto(p.horarios) ? p.horarios : {};
   const horarios: HorariosDosMotores = {
     esteira: mesclarHora(h.esteira, base.horarios.esteira),
@@ -165,20 +140,16 @@ export function mesclarConfig(parcial: unknown): ConfigNurture {
     video_digest: mesclarHora(h.video_digest, base.horarios.video_digest),
   };
 
-  // digest day
   const digestDiaDaSemana =
     inteiroNaoNegativo(p.digestDiaDaSemana) !== null && (p.digestDiaDaSemana as number) <= 6
       ? (p.digestDiaDaSemana as number)
       : base.digestDiaDaSemana;
 
-  // timezone
   const timezone =
     typeof p.timezone === "string" && p.timezone.trim().length > 0
       ? p.timezone.trim()
       : base.timezone;
 
-  // janelas — a fully-invalid array falls back to the default, never to an
-  // empty list (an empty list would silently switch off every day).
   const j = ehObjeto(p.janelas) ? p.janelas : {};
   const diasPermitidosFiltrados = Array.isArray(j.diasPermitidos)
     ? (j.diasPermitidos.filter(
@@ -193,13 +164,11 @@ export function mesclarConfig(parcial: unknown): ConfigNurture {
       )
     : base.janelas.blackout;
 
-  // fusivel
   const f = ehObjeto(p.fusivel) ? p.fusivel : {};
   const fusivel = {
     email: inteiroPositivo(f.email) ?? base.fusivel.email,
   };
 
-  // agenda: null = derive from horarios (see agenda.ts)
   const agenda: AgendaEntrada[] | null = Array.isArray(p.agenda)
     ? p.agenda
         .filter(ehObjeto)

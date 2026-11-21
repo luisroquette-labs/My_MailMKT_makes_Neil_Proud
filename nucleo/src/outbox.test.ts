@@ -91,7 +91,7 @@ describe("enviarComOutbox", () => {
   it("constantes de fidelidade", () => {
     expect(LEASE_MS).toBe(5 * 60 * 1000);
     expect(DEAD_LETTER_MS).toBe(23 * 60 * 60 * 1000);
-    expect(PRAZO_DE_LOOP_MS).toBe(240_000); // < maxDuration 300s da Vercel
+    expect(PRAZO_DE_LOOP_MS).toBe(240_000);
   });
 });
 
@@ -169,7 +169,6 @@ describe("REGRESSÃO review T20 — retomada e dead-letter", () => {
     const depsFake = { fila, enviador: { enviar: vi.fn() }, log, repo: repoFake as never, eventos: {} as never, relogio: {} as never };
     const removidas = await limparReservasOrfas(depsFake, AGORA);
     expect(removidas).toBe(2);
-    // AGORA (10:00 BRT = 13:00Z) - 1h
     expect(fila.removerOrfas).toHaveBeenCalledWith("2026-08-18T12:00:00.000Z");
   });
 });

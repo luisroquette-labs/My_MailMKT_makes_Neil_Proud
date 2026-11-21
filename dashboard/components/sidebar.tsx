@@ -57,11 +57,9 @@ export function Sidebar() {
   );
 }
 
-/** Mobile-only top bar with a Sheet drawer — desktop keeps the fixed sidebar. */
 export function NavMobile() {
   const pathname = usePathname();
   const [aberto, setAberto] = useState(false);
-  // close the drawer on navigation — the sheet persists across routes
   useEffect(() => {
     setAberto(false);
   }, [pathname]);

@@ -9,7 +9,7 @@ describe("mesclarConfig", () => {
   it("valor válido vence", () => {
     const c = mesclarConfig({ throttle: { maxPorLeadPorDia: 3 } });
     expect(c.throttle.maxPorLeadPorDia).toBe(3);
-    expect(c.throttle.minHorasEntreEnvios).toBe(20); // irmão preservado
+    expect(c.throttle.minHorasEntreEnvios).toBe(20);
   });
 
   it("valor inválido cai no default sem lançar", () => {

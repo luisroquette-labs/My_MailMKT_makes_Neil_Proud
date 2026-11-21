@@ -10,11 +10,6 @@ import type {
   ReservaLog,
 } from "@mymailmkt/nucleo";
 
-/**
- * In-memory adapters — the dashboard demo and the test suite run on these,
- * with no external services. Everything is deterministic: the seed data and
- * the fixed clock never change between runs.
- */
 
 export const AGORA_FIXA = "2026-08-18T10:00:00-03:00";
 
@@ -135,8 +130,6 @@ export function criarAdaptersMemoria(seed?: Seed): {
       ) {
         return null;
       }
-      // liberadas podem ser reivindicadas (retry amanhã) — a política de
-      // intervalo mínimo vive no núcleo (RETRY_MINIMO_MS).
       estado.fila.tentativas.set(k, AGORA_FIXA);
       const arg = estado.fila.argumentos.get(k);
       return arg ?? null;

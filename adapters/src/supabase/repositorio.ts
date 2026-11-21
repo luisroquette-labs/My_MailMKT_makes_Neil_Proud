@@ -5,19 +5,6 @@ import type {
   ReservaLog,
 } from "@mymailmkt/nucleo";
 
-/**
- * Supabase adapter — faithful to the reference production system:
- *
- * - `lerLeads` is paginated via range() — PostgREST silently truncates raw
- *   selects at 1000 rows, so `.select()` without range is forbidden;
- * - `reservarNoLog` maps unique violation 23505 to "duplicado" (already
- *   sent — caller skips, never retries);
- * - the outbox goes through the 4 atomic RPCs (reserve/claim/complete/
- *   release); a refused reservation (already present) returns false.
- *
- * The client is injected, so the adapter has no secrets and no network of
- * its own — and can be tested with a mock.
- */
 
 export interface ClienteSupabase {
   from(tabela: string): {
@@ -51,8 +38,6 @@ export function criarAdapterSupabase(client: ClienteSupabase): {
     },
 
     async lerSupressoes() {
-      // Paginated — a capped read would silently stop honoring opt-outs
-      // from the 1001st suppression onward (LGPD).
       const emails = new Set<string>();
       for (let offset = 0; ; offset += 1000) {
         const { data, error } = await client
@@ -67,8 +52,6 @@ export function criarAdapterSupabase(client: ClienteSupabase): {
     },
 
     async lerLogDeEnvio({ desde }) {
-      // Paginated — a capped read would leave the throttle state incomplete
-      // and the system would send MORE, silently.
       const linhas: { to_email: string; email_type: string; sent_at: string }[] = [];
       for (let offset = 0; ; offset += 1000) {
         const { data, error } = await client
@@ -98,8 +81,6 @@ export function criarAdapterSupabase(client: ClienteSupabase): {
 
   const fila: FilaOutbox = {
     async reservar(e) {
-      // The RPC returns the INSERT "found" boolean: false = key already
-      // exists (never resend). Discarding it would send duplicates.
       const { data, error } = await client.rpc("reserve_nurture_email_outbox", {
         p_idempotency_key: e.idempotencyKey,
         p_email_args: e,
@@ -158,7 +139,6 @@ export function criarAdapterSupabase(client: ClienteSupabase): {
 
   const eventos: import("@mymailmkt/nucleo").RegistradorDeEventos = {
     async registrar(ev) {
-      // Best-effort: analytics never blocks delivery.
       try {
         await client.from("nurture_email_events").insert({
           email: ev.email,

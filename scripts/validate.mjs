@@ -37,10 +37,6 @@ const [sequence, rules, factPack] = await Promise.all([
   readJson("fact-pack.json"),
 ]);
 
-// v2.0.0 — marketing campaign contract (optional campaign.json in the
-// directory). Deterministic: same input, same verdict. Fields follow
-// motores/src/mail-mkt/cadencia.ts (CampanhaDeMarketing) and the copy floor
-// follows nucleo/src/piso.ts (TERMOS_BANIDOS port).
 await validarCampanhaDeMarketing();
 
 try {
@@ -74,9 +70,6 @@ const bannedSubjectWords = (rules.bannedSubjectWords ?? []).map((word) => word.t
 const requiredPostscripts = new Set(rules.requirePostscriptFor ?? []);
 const requireNamePersonalizationFor = new Set(rules.requireNamePersonalizationFor ?? []);
 const personalizationToken = "{{lead.firstName}}";
-// Representative first-name length for subject-length checks. The literal token is
-// longer than any real rendered name would be, so counting it verbatim would make
-// personalization mathematically impossible under a mobile subject limit.
 const personalizationPlaceholder = "Alex";
 const seen = new Set();
 
@@ -219,7 +212,7 @@ async function validarCampanhaDeMarketing() {
   try {
     campanha = JSON.parse(await readFile(file, "utf8"));
   } catch {
-    return; // campaign.json is optional — v1.1.1 directories stay valid
+    return;
   }
 
   const camposObrigatorios = ["slug", "name", "offerName", "offerUrl", "status", "cadence", "sendHour"];
@@ -250,7 +243,6 @@ async function validarCampanhaDeMarketing() {
     errors.push("campaign.json: intervalDays deve ser inteiro >= 1");
   }
 
-  // Copy floor — same gate that runs on save AND send in the engine.
   const subject = typeof campanha.copy?.subject === "string" ? campanha.copy.subject : "";
   const corpo = typeof campanha.copy?.corpo === "string" ? campanha.copy.corpo : "";
   if (subject.trim() === "") errors.push("campaign.json: copy.subject vazio");

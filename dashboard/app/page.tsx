@@ -21,7 +21,6 @@ export default function Hub() {
   const [estado, setEstado] = useState<EstadoDemo>("ok");
   const [carregando, setCarregando] = useState(true);
 
-  // Simulated fetch — deterministic 600ms, like the real cockpit queries.
   useEffect(() => {
     setCarregando(true);
     const t = setTimeout(() => setCarregando(false), 600);

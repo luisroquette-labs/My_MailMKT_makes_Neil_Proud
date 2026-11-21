@@ -1,11 +1,3 @@
-/**
- * Copy floor — deterministic anti-sensationalism gate.
- *
- * Fidelity contract (reference production system, lib/nurture/piso.ts): the banned
- * list is the SINGLE source of truth; the gate runs on BOTH save and send.
- * A line that fails or is malformed falls back to the repo seed and logs —
- * it never ships. Deterministic: same input, same verdict, always.
- */
 
 export const TERMOS_BANIDOS = [
   "garantido",
@@ -31,9 +23,6 @@ export interface AvaliacaoDeCopy {
   achados: string[];
 }
 
-/**
- * Deterministic verdict over subject + body. Never throws.
- */
 export function avaliarCopy(copy: { subject: string; corpo: string }): AvaliacaoDeCopy {
   const achados: string[] = [];
   if (!copy.subject || copy.subject.trim().length === 0) {

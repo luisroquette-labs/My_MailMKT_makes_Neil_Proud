@@ -13,8 +13,6 @@ describe("agendaPadraoDe", () => {
 describe("alvosDaHora", () => {
   it("tique de hora cheia alcança default de :30 (truncado de propósito)", () => {
     const a = agendaPadraoDe(CONFIG_PADRAO);
-    // "10" alcança mail_mkt (10:30) E esteira (10:00) — o truncamento junta
-    // os dois no mesmo tique; o dispatcher resolve por prioridade.
     expect(alvosDaHora(a, "10", 2)).toEqual(["mail_mkt", "esteira"]);
   });
 
@@ -33,7 +31,7 @@ describe("alvosDaHora", () => {
       ...mesclarConfig({}),
       agenda: [{ dias: [1], horas: ["10:30"], alvo: "mail_mkt" }],
     };
-    expect(alvosDaHora(config.agenda!, "10", 2)).toEqual([]); // 2 = terça? não — 2 = quarta
+    expect(alvosDaHora(config.agenda!, "10", 2)).toEqual([]);
     expect(alvosDaHora(config.agenda!, "10", 1)).toEqual(["mail_mkt"]);
   });
 
