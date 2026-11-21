@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -57,14 +57,13 @@ export function Sidebar() {
   );
 }
 
-/** Mobile-only top bar with a Sheet drawer — desktop keeps the fixed sidebar. */
 export function NavMobile() {
   const pathname = usePathname();
+  return <NavMobileForPath key={pathname} pathname={pathname} />;
+}
+
+function NavMobileForPath({ pathname }: { pathname: string }) {
   const [aberto, setAberto] = useState(false);
-  // close the drawer on navigation — the sheet persists across routes
-  useEffect(() => {
-    setAberto(false);
-  }, [pathname]);
   return (
     <div className="md:hidden flex items-center justify-between border-b bg-background px-4 py-3">
       <p className="flex items-center gap-2 text-sm font-semibold">

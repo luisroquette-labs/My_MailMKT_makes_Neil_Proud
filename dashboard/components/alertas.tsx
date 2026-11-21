@@ -9,7 +9,6 @@ const ROTULO: Record<Alerta["tipo"], string> = {
   dead_letter: "Dead-letter",
 };
 
-/** null = loading (never show "no alerts" for data that has not arrived). */
 export function PainelDeAlertas({ alertas }: { alertas: Alerta[] | null }) {
   return (
     <Card>

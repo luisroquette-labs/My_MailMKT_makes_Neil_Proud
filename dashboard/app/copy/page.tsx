@@ -6,11 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { COPY_DEMO, TERMOS_BANIDOS_DEMO } from "@/data/fixtures";
 
-/**
- * Copy editor — the floor gate (nucleo/piso.ts port) runs on SAVE and on
- * SEND. A rejected line falls back to the repo seed and logs; it never
- * ships. The demo reproduces the same deterministic verdict locally.
- */
 function avaliar(subject: string, corpo: string): string[] {
   const achados: string[] = [];
   if (!subject.trim()) achados.push("assunto vazio");

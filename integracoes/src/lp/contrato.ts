@@ -1,11 +1,3 @@
-/**
- * LP intake contract — how a landing page (My_LP_Makes_Neil_Proud) feeds
- * leads into the nurture engine.
- *
- * The LP owns its form (name + WhatsApp + email); this contract only defines
- * the shape the nurture engine accepts. Normalization is defensive: input is
- * untrusted (webhooks), never throws, and invalid fields are dropped.
- */
 
 export interface UtmsDeOrigem {
   source?: string;

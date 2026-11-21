@@ -9,20 +9,6 @@ import type { IntegracaoDeTracking } from "@mymailmkt/integracoes";
 import { embrulharLinksDoHtml, hashCurtoDestino } from "@mymailmkt/integracoes";
 import { estaAtivaNaHora, ocorrenciaId, candidatos, type CampanhaDeMarketing } from "./cadencia";
 
-/**
- * Marketing runner — the reference `lib/nurture/marketing/runner.ts` port.
- *
- * Fidelity contract:
- * - ONE tracking link per occurrence (same destination for all leads of the
- *   round), never per lead — per-lead would be redundant inserts;
- * - throttle verdict before the durable log reservation (respecting
- *   throttle_exempt);
- * - durable reservation first (unique violation = already sent, skip);
- * - `sucessos` counts REAL deliveries only, never attempts — an attempted
- *   candidate that the sender rejects does not count;
- * - idempotency key carries the occurrence id (not `next_send_on`, which the
- *   agenda never advances within a day).
- */
 
 export interface ConteudoDeEmail {
   subject: string;
@@ -32,11 +18,9 @@ export interface ConteudoDeEmail {
 
 export function criarRunnerMailMkt(opts: {
   lerCampanhasAtivas(): Promise<CampanhaDeMarketing[]>;
-  /** Database copy first, then seed, then null (campaign without content is skipped). */
   lerConteudo(emailType: string): Promise<ConteudoDeEmail | null>;
   tracking: IntegracaoDeTracking;
   siteUrl: string;
-  /** Real HTTPS unsubscribe URL with HMAC token — the visible footer link. */
   montarUrlDescadastro(email: string): string;
 }): RunnerDeMotor {
   return async (deps: DependenciasDoNucleo, ctx): Promise<ResultadoDaRodada> => {
@@ -62,11 +46,8 @@ export function criarRunnerMailMkt(opts: {
       estaAtivaNaHora(c, hora, dia, diaLocalISO),
     );
 
-    // Opt-outs (LGPD): one-click unsubscribe inserts a suppression row —
-    // EVERY motor must check it before reserving anything.
     const supressoes = await deps.repo.lerSupressoes();
 
-    // Leads loaded ONCE per round — N campaigns must not re-scan the table N times.
     const leads = await lerTodosOsLeads(deps);
 
     for (const campanha of campanhas) {
@@ -76,8 +57,6 @@ export function criarRunnerMailMkt(opts: {
       const content = await opts.lerConteudo(emailType);
       if (!content) continue;
 
-      // Copy floor on SEND: a rejected line falls back to the seed and logs —
-      // it never ships. Same deterministic gate the editor runs on save.
       const piso = avaliarCopy({ subject: content.subject, corpo: content.corpo });
       if (!piso.aprovado) {
         deps.log("[mail-mkt] copy reprovada no piso — campanha pulada", {
@@ -90,8 +69,6 @@ export function criarRunnerMailMkt(opts: {
       const alvos = candidatos(campanha, leads, agora);
       resultado.candidatos += alvos.length;
 
-      // Preview: count candidates, skip everything — dry NEVER sends and
-      // NEVER creates tracking links (zero side effects).
       if (ctx.dry) {
         resultado.pulados.push({
           email: campanha.slug,
@@ -100,8 +77,6 @@ export function criarRunnerMailMkt(opts: {
         continue;
       }
 
-      // ONE tracking link per occurrence — same destination for every lead
-      // of this round.
       const destinoCta = content.ctaUrl.startsWith("http")
         ? content.ctaUrl
         : `${opts.siteUrl}${content.ctaUrl}`;
@@ -119,14 +94,10 @@ export function criarRunnerMailMkt(opts: {
         });
       }
 
-      // Body links: one tracked link per unique body URL (cache per
-      // occurrence) — every promotional href passes through the tracklink.
       const urlsDoCorpo = coletarHrefs(content.corpo);
       const mapaDoCorpo = new Map<string, string>();
       for (const url of urlsDoCorpo) {
         try {
-          // Slug único por destino (hash) — dois hrefs distintos NUNCA
-          // colapsam no mesmo tracking link.
           const trackada = await opts.tracking.obterOuCriarLink({
             campanhaSlug: `${campanha.slug}-corpo-${hashCurtoDestino(url)}`,
             campanhaNome: campanha.name,
@@ -175,9 +146,6 @@ export function criarRunnerMailMkt(opts: {
           continue;
         }
 
-        // Fuse consumed per ATTEMPT, after a successful reservation — it
-        // protects the execution budget, and duplicate/error reservations
-        // must not burn a token.
         if (!ctx.fusivel.consumir()) break;
 
         const html = renderEmail(
@@ -198,7 +166,7 @@ export function criarRunnerMailMkt(opts: {
         });
 
         if (saida.resultado === "enviado") {
-          resultado.enviados += 1; // REAL delivery only — never attempts
+          resultado.enviados += 1;
           aplicarEnvio(ctx.throttle, email, agora);
         } else {
           resultado.falhas.push({ email, erro: saida.detalhe ?? saida.resultado });
@@ -222,7 +190,6 @@ async function lerTodosOsLeads(deps: DependenciasDoNucleo) {
   return todos;
 }
 
-/** Collect unique hrefs from raw copy (may contain HTML anchors). */
 function coletarHrefs(html: string): string[] {
   const hrefs = new Set<string>();
   const re = /<a\b[^>]*href=(?:"([^"]*)"|'([^']*)')/gi;
@@ -241,14 +208,10 @@ function renderEmail(
   mapaDoCorpo: Map<string, string>,
   urlDescadastro: string,
 ): string {
-  // Subject, lead name and hrefs come from untrusted sources (admin editor,
-  // LP forms) — escape them. The body remains authorial HTML by contract.
   const subject = escapeHtml(content.subject);
   const nomeSeguro = escapeHtml(nome);
   const ctaSeguro = escapeHtml(ctaUrl);
   const descadastroSeguro = escapeHtml(urlDescadastro);
-  // Every promotional href of the body goes through the tracklink mapping;
-  // unsubscribe/mailto anchors are exempt by contract.
   const corpoRastreado = embrulharLinksDoHtml(
     content.corpo.replaceAll("{{lead.firstName}}", nomeSeguro).replaceAll("{{lead.nome}}", nomeSeguro),
     (url) => mapaDoCorpo.get(url) ?? url,

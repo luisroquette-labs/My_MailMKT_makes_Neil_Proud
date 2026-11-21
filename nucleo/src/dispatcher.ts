@@ -20,7 +20,6 @@ export interface ContextoDoMotor {
   throttle: EstadoThrottle;
   horarioAlvo: string;
   fusivel: { esgotado(): boolean; consumir(): boolean };
-  /** Preview mode: runners count candidates and skip — NEVER send. */
   dry: boolean;
 }
 
@@ -40,16 +39,6 @@ export interface ResultadoDoDispatcher {
   cortePorPrazo?: MotorId;
 }
 
-/**
- * Single dispatch point — the "one cron" of the reference system.
- *
- * Fidelity contract (reference production, `nurture-dispatcher`, "0 * * * *"): one tick
- * asks the database-backed agenda "who is due at this hour", then runs the
- * due motors in PRIORITY order sharing ONE throttle state, ONE shared fuse
- * and ONE hard loop budget (240s < the 300s platform maxDuration). Alerts
- * fire for a motor with zero sends plus failures — the caller wires `log`
- * to the alerting channel.
- */
 export async function rodarDispatcher(
   deps: DependenciasDoNucleo,
   config: ConfigNurture,
@@ -60,7 +49,6 @@ export async function rodarDispatcher(
   const hora = deps.relogio.horaLocalHH();
   const dia = deps.relogio.diaDaSemanaLocal();
 
-  // Operational windows from the database MUST actually stop sends.
   if (!diaPermitido(dia, config.janelas.diasPermitidos)) {
     deps.log("[dispatcher] dia fora dos dias permitidos", { dia });
     return { resultados: [] };
@@ -78,15 +66,9 @@ export async function rodarDispatcher(
     return { resultados: [] };
   }
 
-  // Dry is a pure preview: NO side effects — it must not touch orphan
-  // cleanup (hard deletes) nor resume pending rows (real sends).
   if (opts?.dry !== true) {
-    // Clean orphan reservations BEFORE loading the throttle state —
-    // inverting this order makes an abandoned reservation block a
-    // legitimate lead.
     await limparReservasOrfas(deps, agora);
 
-    // Resume pending outbox rows (claim/lease), dead-letter past 23h.
     await retomarEmailsPendentes(deps, agora);
   }
 
@@ -94,16 +76,8 @@ export async function rodarDispatcher(
   let devidos = alvosDaHora(agenda, hora, dia);
 
   if (opts?.motor) devidos = devidos.filter((m) => m === opts.motor);
-  // reorder by the DATABASE priority (config.prioridade, editable by screen)
-  // — never by a hardcoded constant, or a custom priority would reorder the
-  // agenda but not the execution order.
   const ordenados = config.prioridade.filter((m) => devidos.includes(m));
 
-  // One shared throttle state loaded once per round — the second motor sees
-  // what the first served. (Callers must clean orphan reservations BEFORE
-  // this — see the reference: load-after-clean, never the reverse.)
-  // Fetch exactly the effective window — max(24h, minHorasEntreEnvios);
-  // fetching more (e.g. a fixed 7 days) multiplies the read for nothing.
   const janelaMs = Math.max(
     24 * 60 * 60 * 1000,
     config.throttle.minHorasEntreEnvios * 60 * 60 * 1000,
@@ -112,7 +86,6 @@ export async function rodarDispatcher(
   const logDeEnvio = await deps.repo.lerLogDeEnvio({ desde });
   const throttle = carregarEstadoThrottle(logDeEnvio, config.throttle, agora);
 
-  // One shared fuse for the whole round.
   let restante = config.fusivel.email;
   const fusivel = {
     esgotado: () => restante <= 0,
@@ -145,8 +118,6 @@ export async function rodarDispatcher(
     });
     resultados.push(resultado);
 
-    // Alert: motor with zero sends AND failures — separate from
-    // "campaign with zero sends" (checked inside the marketing runner).
     if (resultado.enviados === 0 && resultado.falhas.length > 0) {
       deps.log("[alerta] motor com 0 enviados e falhas", {
         motor: resultado.motor,

@@ -77,7 +77,7 @@ describe("runner mail mkt", () => {
     const r = await runner(deps, ctx(throttle));
 
     expect(r.motor).toBe("mail_mkt");
-    expect(r.enviados).toBe(3); // seed tem 3 leads
+    expect(r.enviados).toBe(3);
     expect(estado.logDeEnvio).toHaveLength(3);
     expect(estado.enviados).toHaveLength(3);
     expect(trackingOk.obterOuCriarLink).toHaveBeenCalledTimes(1);
@@ -98,7 +98,7 @@ describe("runner mail mkt", () => {
     const throttle = carregarEstadoThrottle(estado.logDeEnvio, CONFIG_PADRAO.throttle, AGORA);
     const r = await runner(deps, ctx(throttle));
 
-    expect(r.enviados).toBe(2); // os outros 2 leads
+    expect(r.enviados).toBe(2);
     const ana = r.pulados.find((p) => p.email === "ana@empresa.com.br");
     expect(ana?.motivo).toMatch(/^throttle:/);
   });
@@ -117,7 +117,7 @@ describe("runner mail mkt", () => {
     });
     const throttle = carregarEstadoThrottle(estado.logDeEnvio, CONFIG_PADRAO.throttle, AGORA);
     const r = await runner(deps, ctx(throttle));
-    expect(r.enviados).toBe(3); // ana incluída de novo
+    expect(r.enviados).toBe(3);
   });
 
   it("falha do tracking degrada pra URL crua e o envio segue", async () => {
@@ -152,7 +152,6 @@ describe("runner mail mkt", () => {
     });
     const throttle = carregarEstadoThrottle([], CONFIG_PADRAO.throttle, AGORA);
     await runner(deps, ctx(throttle));
-    // segunda rodada com MESMO dia/hora: ocorrência idêntica → UNIQUE do log pega
     const r2 = await runner(deps, ctx(throttle));
     expect(r2.enviados).toBe(0);
     expect(r2.pulados).toHaveLength(3);
@@ -193,7 +192,7 @@ describe("runner mail mkt", () => {
     await runner(deps, ctx(throttle));
     expect(estado.fila.concluidas).toHaveLength(0);
     expect(estado.fila.liberadas).toHaveLength(0);
-    expect(estado.fila.reservadas).toHaveLength(3); // preservadas
+    expect(estado.fila.reservadas).toHaveLength(3);
     deps.enviador.enviar = original;
   });
 
@@ -260,12 +259,10 @@ describe("REGRESSÃO review T20", () => {
     await runner(deps, ctx(throttle));
     const html = htmls[0]!;
     expect(html).toContain("https://exemplo.com.br/unsubscribe?token=ana@empresa.com.br");
-    // corpo embrulhado: o tracking foi chamado para cada URL única do corpo
     const chamadas = (trackingOk.obterOuCriarLink as ReturnType<typeof vi.fn>).mock.calls;
     const urlsPedidas = chamadas.map((c) => (c[0] as { destino: string }).destino);
     expect(urlsPedidas).toContain("https://exemplo.com.br/artigo-a");
     expect(urlsPedidas).toContain("https://exemplo.com.br/artigo-b");
-    // o que importa: as URLs trackadas entregues são DISTINTAS entre si
     const trackadasNoHtml = new Set(
       [...html.matchAll(/https:\/\/t\.exemplo\.com\/([^"\s]+)/g)].map((m) => m[0]),
     );
@@ -334,7 +331,7 @@ describe("REGRESSÃO review T20", () => {
     };
     const motores = { mail_mkt: vi.fn(async () => ({ motor: "mail_mkt" as const, candidatos: 0, enviados: 0, pulados: [], falhas: [] })) } as never;
     await rodarDispatcher(depsFake as never, CONFIG_PADRAO, motores, { dry: true });
-    expect(chamadas).toEqual([]); // zero efeito colateral no preview
+    expect(chamadas).toEqual([]);
   });
 
 describe("REGRESSÃO lapidação L1", () => {
@@ -368,9 +365,7 @@ describe("REGRESSÃO lapidação L1", () => {
     const runner = criarRunnerMailMkt(base);
     const throttle = carregarEstadoThrottle([], CONFIG_PADRAO.throttle, AGORA);
     await runner(deps, ctx(throttle));
-    // a tag crua NUNCA pode existir no html
     expect(htmls.join("")).not.toContain("<script>alert(1)</script>");
-    // o escape DEVE estar presente (não é um teste vazio)
     expect(htmls.join("")).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
   });
 

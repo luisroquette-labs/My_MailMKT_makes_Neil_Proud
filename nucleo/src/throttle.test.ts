@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { carregarEstadoThrottle, podeReceber, aplicarEnvio } from "./throttle";
 
 const regras = { maxPorLeadPorDia: 1, minHorasEntreEnvios: 20 };
-const AGORA = "2026-08-18T15:00:00-03:00"; // 15h BRT
+const AGORA = "2026-08-18T15:00:00-03:00";
 
 describe("throttle compartilhado", () => {
   it("lead sem envio pode receber", () => {

@@ -1,18 +1,9 @@
-/**
- * The 25-day sequence — the content layer inherited from My_MailMKT v1.1.1.
- *
- * Ported from the v1.1.1 SKILL.md sequence table (the reference reference production
- * drip uses the same D+0..D+25 anchors). Each format has a different job,
- * so the list never receives ten variations of the same sales email.
- */
 
 export type FormatoDePasso = "lesson" | "letter" | "echo";
 
 export interface PassoDeSequencia {
-  /** Days since the lead was captured. */
   dia: number;
   formato: FormatoDePasso;
-  /** What this step does. */
   funcao: string;
 }
 
@@ -31,20 +22,12 @@ export const SEQUENCIA_25_DIAS: readonly PassoDeSequencia[] = [
 
 export const FORMATOS_PERMITIDOS: readonly FormatoDePasso[] = ["lesson", "letter", "echo"];
 
-/** The step due exactly `diasDesde` days after capture, or null. */
 export function passoDadoDiaDesdeCadastro(diasDesde: number): PassoDeSequencia | null {
   if (diasDesde < 0) return null;
   const passo = SEQUENCIA_25_DIAS.find((p) => p.dia === diasDesde);
   return passo ?? null;
 }
 
-/**
- * Seed copy — example subjects/letters from the v1.1.1 examples
- * (b2b-ai-training). Editable copy lives in the database
- * (nurture_email_copy in the reference); this seed is the fallback, exactly
- * like the reference: a rejected/malformed row falls back to the seed and
- * logs — it never ships.
- */
 export const COPY_SEED: Record<string, { subject: string; corpo: string }> = {
   welcome: {
     subject: "{{lead.firstName}}, comece por aqui",

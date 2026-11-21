@@ -57,7 +57,6 @@ export default function Campanhas() {
     setAberto(false);
   }
 
-  // Archive = status 'completed' — NEVER delete (fidelity).
   function arquivar(id: string) {
     setCampanhas((cs) =>
       cs.map((c) => (c.id === id ? { ...c, status: "completed" as const } : c)),

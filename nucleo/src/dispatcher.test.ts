@@ -51,8 +51,6 @@ function runnerFake(nome: MotorId, enviados: string[]) {
   return runner;
 }
 
-// agenda explícita: os 5 motores devidos no mesmo tique "10" — a ordem real
-// é resolvida por PRIORIDADE, não pela ordem da agenda
 function configComTodosNaHora(): ConfigNurture {
   return {
     ...CONFIG_PADRAO,
@@ -74,7 +72,6 @@ describe("rodarDispatcher", () => {
       digest: runnerFake("digest", ordem),
       video_digest: runnerFake("video_digest", ordem),
     } as Record<MotorId, RunnerDeMotor>;
-    // agenda em ordem invertida de propósito
     const config: ConfigNurture = {
       ...configComTodosNaHora(),
       agenda: [...configComTodosNaHora().agenda!].reverse(),

@@ -5,12 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-/**
- * Rules screen — the editable surface of nurture_config. The demo validates
- * with the same rules as nucleo/config.ts mesclarConfig (invalid falls back
- * to the default, never throws). Production: this form writes the singleton
- * jsonb row; the engine merges it over CONFIG_PADRAO.
- */
 
 const RE_HORA = /^\d{2}:\d{2}$/;
 

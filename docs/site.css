@@ -3,7 +3,6 @@
 @media(max-width:480px){.timeline{grid-template-columns:1fr}.timeline article{min-height:150px}.timeline span{margin-bottom:22px}.system-grid{grid-template-columns:1fr}.system-grid article,.system-grid article:nth-child(n+3){min-height:220px;border-right:0;border-bottom:1px solid var(--ink)}.system-grid article:last-child{border-bottom:0}.nav-links .nav-button{font-size:0}.nav-button::after{content:'↗';font-size:15px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
 
-/* v2.0.0 banner (My_MailMKT cockpit) */
 .v2-banner {
   max-width: 1100px;
   margin: 0 auto;
