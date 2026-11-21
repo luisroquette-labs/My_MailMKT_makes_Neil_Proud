@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import ts from "typescript";
 
 const paths = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
-const checked = /\.(?:ts|tsx|js|mjs|css|sql|html|ya?ml)$|(?:^|\/)\.gitignore$/;
+const checked = /\.(?:ts|tsx|js|mjs|css|sql|html|ya?ml|sh)$|(?:^|\/)\.gitignore$/;
 const generated = /^dashboard\/next-env\.d\.ts$/;
 let errors = 0;
 
@@ -25,9 +25,61 @@ function tsComments(path, source) {
   return [...offsets].sort((a, b) => a - b);
 }
 
+function sqlComments(source) {
+  const offsets = [];
+  let quote = null;
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i];
+    const next = source[i + 1];
+    if (quote) {
+      if (char === quote && next === quote) i++;
+      else if (char === quote) quote = null;
+    } else if (char === "'" || char === '"') {
+      quote = char;
+    } else if (char === "-" && next === "-") {
+      offsets.push(i);
+      i = source.indexOf("\n", i);
+      if (i < 0) break;
+    } else if (char === "/" && next === "*") {
+      offsets.push(i);
+      let depth = 1;
+      i += 2;
+      for (; i < source.length && depth; i++) {
+        if (source[i] === "/" && source[i + 1] === "*") { depth++; i++; }
+        else if (source[i] === "*" && source[i + 1] === "/") { depth--; i++; }
+      }
+      i--;
+    }
+  }
+  return offsets;
+}
+
+function hashComments(source, shebang = false) {
+  const offsets = [];
+  let offset = 0;
+  for (const line of source.split("\n")) {
+    if (!(shebang && offset === 0 && line.startsWith("#!"))) {
+      let quote = null;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (quote) {
+          if (char === quote && line[i + 1] === quote) i++;
+          else if (char === quote && line[i - 1] !== "\\") quote = null;
+        } else if (char === "'" || char === '"') quote = char;
+        else if (char === "#" && (i === 0 || /\s/.test(line[i - 1]))) { offsets.push(offset + i); break; }
+      }
+    }
+    offset += line.length + 1;
+  }
+  return offsets;
+}
+
 assert.equal(tsComments("sample.ts", '#!/usr/bin/env node\nconst url = "https://example.com/a//b";\nconst template = `https://${"example.com"}`;').length, 0);
 assert.equal(tsComments("sample.tsx", "const element = <div>{/* forbidden */}</div>;").length, 1);
 assert.equal(tsComments("sample.ts", "const x = 1; // forbidden").length, 1);
+assert.deepEqual(sqlComments("select '--'; -- forbidden\nselect 1 /* forbidden */;"), [13, 35]);
+assert.equal(hashComments('key: "value # literal"\nkey: value #forbidden').length, 1);
+assert.equal(hashComments('#!/bin/sh\nprintf "# literal"\n#forbidden', true).length, 1);
 
 for (const path of paths) {
   if (!checked.test(path) || generated.test(path)) continue;
@@ -38,7 +90,7 @@ for (const path of paths) {
   } else if (/\.css$/.test(path)) {
     for (const match of source.matchAll(/\/\*[\s\S]*?\*\//g)) comments.push(match.index);
   } else if (/\.sql$/.test(path)) {
-    for (const match of source.matchAll(/^\s*--.*$/gm)) comments.push(match.index);
+    comments.push(...sqlComments(source));
   } else if (/\.html$/.test(path)) {
     for (const match of source.matchAll(/<!--[\s\S]*?-->/g)) comments.push(match.index);
     for (const match of source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
@@ -50,7 +102,9 @@ for (const path of paths) {
       for (const comment of match[1].matchAll(/\/\*[\s\S]*?\*\//g)) comments.push(start + comment.index);
     }
   } else if (/\.ya?ml$/.test(path)) {
-    for (const match of source.matchAll(/(?:^|\s)#\s.*$/gm)) comments.push(match.index);
+    comments.push(...hashComments(source));
+  } else if (/\.sh$/.test(path)) {
+    comments.push(...hashComments(source, true));
   } else {
     for (const match of source.matchAll(/^\s*#.*$/gm)) comments.push(match.index);
   }
