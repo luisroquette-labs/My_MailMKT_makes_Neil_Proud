@@ -59,15 +59,18 @@ export function Sidebar() {
 
 export function NavMobile() {
   const pathname = usePathname();
-  const [caminhoAberto, setCaminhoAberto] = useState<string | null>(null);
-  const aberto = caminhoAberto === pathname;
+  return <NavMobileForPath key={pathname} pathname={pathname} />;
+}
+
+function NavMobileForPath({ pathname }: { pathname: string }) {
+  const [aberto, setAberto] = useState(false);
   return (
     <div className="md:hidden flex items-center justify-between border-b bg-background px-4 py-3">
       <p className="flex items-center gap-2 text-sm font-semibold">
         <img src="/logo.png" alt="Logo" className="h-6 w-6 rounded" />
         Mail MKT
       </p>
-      <Sheet open={aberto} onOpenChange={(abrir) => setCaminhoAberto(abrir ? pathname : null)}>
+      <Sheet open={aberto} onOpenChange={setAberto}>
         <SheetTrigger className="rounded-md border px-3 py-1.5 text-sm">Menu</SheetTrigger>
         <SheetContent side="left" className="w-64">
           <SheetTitle className="sr-only">Navegação</SheetTitle>
@@ -78,7 +81,7 @@ export function NavMobile() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setCaminhoAberto(null)}
+                  onClick={() => setAberto(false)}
                   aria-current={ativo ? "page" : undefined}
                   className={`block rounded-md px-3 py-2 text-sm ${
                     ativo ? "bg-brand/15 font-semibold text-brand" : "text-muted-foreground"
