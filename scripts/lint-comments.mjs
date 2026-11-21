@@ -3,6 +3,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
+import { parse } from "parse5";
 import ts from "typescript";
 
 const paths = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" }).split("\0").filter(Boolean);
@@ -76,15 +77,24 @@ function hashComments(source, shebang = false) {
 
 function htmlComments(source) {
   const comments = [];
-  for (const match of source.matchAll(/<!--[\s\S]*?-->/g)) comments.push(match.index);
-  for (const match of source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi)) {
-    const start = match.index + match[0].indexOf(match[1]);
-    for (const offset of tsComments("inline.js", match[1])) comments.push(start + offset);
+  function visit(node) {
+    if (node.nodeName === "#comment" && node.sourceCodeLocation) {
+      comments.push(node.sourceCodeLocation.startOffset);
+    }
+    if ((node.tagName === "script" || node.tagName === "style") && node.childNodes) {
+      for (const child of node.childNodes) {
+        if (child.nodeName !== "#text" || !child.sourceCodeLocation) continue;
+        const start = child.sourceCodeLocation.startOffset;
+        if (node.tagName === "script") {
+          for (const offset of tsComments("inline.js", child.value)) comments.push(start + offset);
+        } else {
+          for (const comment of child.value.matchAll(/\/\*[\s\S]*?\*\//g)) comments.push(start + comment.index);
+        }
+      }
+    }
+    for (const child of node.childNodes ?? []) visit(child);
   }
-  for (const match of source.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
-    const start = match.index + match[0].indexOf(match[1]);
-    for (const comment of match[1].matchAll(/\/\*[\s\S]*?\*\//g)) comments.push(start + comment.index);
-  }
+  visit(parse(source, { sourceCodeLocationInfo: true }));
   return comments;
 }
 
@@ -95,6 +105,7 @@ assert.deepEqual(sqlComments("select '--'; -- forbidden\nselect 1 /* forbidden *
 assert.equal(hashComments('key: "value # literal"\nkey: value #forbidden').length, 1);
 assert.equal(hashComments('#!/bin/sh\nprintf "# literal"\n#forbidden', true).length, 1);
 assert.equal(htmlComments('<script>const x = 1; // forbidden\n</script >').length, 1);
+assert.equal(htmlComments('<script>const x = 1; // forbidden\n</script\t\n bar>').length, 1);
 
 for (const path of paths) {
   if (!checked.test(path) || generated.test(path)) continue;
